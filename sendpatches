@@ -1,0 +1,34 @@
+#!/bin/bash
+
+PATCHFILE=$1
+COVER_LETTER_PATH=`find $1 -name "*cover-letter.patch"`
+
+echo $COVER_LETTER_PATH
+TO_MAIL=/tmp/temp_to_mail.list
+CC_MAIL=/tmp/temp_cc_mail.list
+
+COVER_LETTER_COMMIT=/tmp/temp_cover_letter_commit
+COMMAND=$2
+
+echo "git send-email --no-signed-off-cc --no-suppress-from $2 \\" > $COVER_LETTER_COMMIT
+for i in `ls $1/*.patch | xargs`
+do
+	scripts/get_maintainer.pl --m --nol --nor --norolestats $i 2>/dev/null | awk '{print "--to=\""$0"\" \\"}' >> $COVER_LETTER_COMMIT
+	scripts/get_maintainer.pl --nom --norolestats $i 2>/dev/null | awk '{print "--cc=\""$0"\" \\"}' >> $COVER_LETTER_COMMIT
+done
+echo "$COVER_LETTER_PATH" >>  $COVER_LETTER_COMMIT
+
+IN_REPLY_TO=""
+for i in `ls $1/*.patch | xargs`
+do
+	if [ $i = $COVER_LETTER_PATH ]; then
+		source $COVER_LETTER_COMMIT | tee /tmp/temp_cover_letter_commit_log
+		IN_REPLY_TO=`cat /tmp/temp_cover_letter_commit_log | grep "Message-Id:" | awk -F ": <|>" '{print $2}'|uniq`
+		continue
+	fi
+	if [ -z $IN_REPLY_TO ]; then
+		echo "Failed to get in_reply_to"
+		exit 1
+	fi
+	git send-email --no-signed-off-cc --no-suppress-from $2 $i --in-reply-to=$IN_REPLY_TO
+done
