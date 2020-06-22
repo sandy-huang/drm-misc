@@ -18,6 +18,7 @@ elif [ $2 = savedefconfig ];
 then
     make savedefconfig
 else
+    echo "make image"
     cp ~/work/develop/upstream/buildroot/output/images/rootfs.cpio.lz4 ./
     make rockchip_linux_defconfig -j8
     make Image -j8
